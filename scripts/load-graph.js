@@ -52,7 +52,7 @@ async function loadGraph({
     projectId = DEFAULT_PROJECT_ID,
     userId = DEFAULT_USER_ID
 } = {}) {
-    if (!NEO4J_PASSWORD) {
+    if (process.env.RIPPLECHECK_EDITION !== "desktop" && !NEO4J_PASSWORD) {
         throw new Error("NEO4J_PASSWORD is not set in environment.");
     }
 
@@ -86,6 +86,54 @@ async function loadGraph({
     console.log(`   Files   : ${filePaths.size}`);
     console.log(`   Imports : ${importEdges.length}`);
 
+    // If running in Desktop Edition, ingest directly into embedded LadybugDB
+    if (process.env.RIPPLECHECK_EDITION === "desktop") {
+        const { executeLadybug, initLadybugSchema } = require("../services/ladybugExecutor");
+        await initLadybugSchema();
+
+        let fileCount = 0;
+        for (const filePath of filePaths) {
+            const compositeId = `${projectId}::${filePath}`;
+            const fileName = extractName(filePath);
+            await executeLadybug(
+                `CREATE (:File {id: $id, projectId: $projectId, path: $path, name: $name, summary: '', userId: $userId})`,
+                { id: compositeId, projectId, path: filePath, name: fileName, userId },
+                { bypassValidation: true }
+            );
+            fileCount++;
+        }
+
+        let edgeCount = 0;
+        for (const edge of importEdges) {
+            const fromId = `${projectId}::${edge.from}`;
+            const toId = `${projectId}::${edge.to}`;
+            await executeLadybug(
+                `MATCH (source:File {id: $fromId}), (target:File {id: $toId}) CREATE (source)-[:IMPORTS]->(target)`,
+                { fromId, toId },
+                { bypassValidation: true }
+            );
+            edgeCount++;
+        }
+
+        const countFiles = await executeLadybug(
+            `MATCH (n:File {projectId: $projectId}) RETURN count(n) AS total_files`,
+            { projectId },
+            { bypassValidation: true }
+        );
+        const totalFiles = countFiles[0].total_files || countFiles[0]["count(n)"] || fileCount;
+
+        const countEdges = await executeLadybug(
+            `MATCH (a:File {projectId: $projectId})-[:IMPORTS]->(b:File {projectId: $projectId}) RETURN count(*) AS total_relationships`,
+            { projectId },
+            { bypassValidation: true }
+        );
+        const totalRelationships = countEdges[0].total_relationships || countEdges[0]["count(*)"] || edgeCount;
+
+        console.log(`✅ [Desktop LadybugDB] Loaded project '${projectId}': ${totalFiles} nodes, ${totalRelationships} relationships.`);
+        return { fileCount, edgeCount, totalFiles: Number(totalFiles), totalRelationships: Number(totalRelationships) };
+    }
+
+    // Web Edition: Load into Neo4j Aura
     const driver = neo4j.driver(
         NEO4J_URI,
         neo4j.auth.basic(NEO4J_USERNAME, NEO4J_PASSWORD)

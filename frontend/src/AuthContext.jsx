@@ -16,7 +16,22 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // If Firebase credentials are missing, mark loading complete with null user
+    // 1. Desktop Edition Check: If running inside Electron desktop shell,
+    // automatically activate the local offline guest profile (no Firebase network requests).
+    if (typeof window !== 'undefined' && window.electronAPI && window.electronAPI.isDesktop) {
+      console.log('[RippleCheck Desktop] Activating offline local guest profile.');
+      setUser({
+        uid: 'desktop-guest-user',
+        displayName: 'Local Architect',
+        email: 'guest@ripplecheck.local',
+        isAnonymous: true
+      });
+      setIdToken('desktop-offline-token');
+      setLoading(false);
+      return;
+    }
+
+    // 2. Web Edition: If Firebase credentials are missing, mark loading complete with null user
     if (!isFirebaseConfigured || !auth) {
       setUser(null)
       setIdToken(null)

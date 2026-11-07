@@ -28,7 +28,16 @@ dist/
 dist-ssr/
 frontend/dist/
 frontend/dist-ssr/
+dist-installer/
+build/bin/
 *.tsbuildinfo
+
+# Local Embedded Graph DB
+kuzudb/
+*.lbug*
+*.wal
+dist_test_db*
+temp_*_db*
 
 # Temporary upload and extraction caches
 multipart-temp/

@@ -57,6 +57,10 @@ function generateSecureProjectId(name = "project") {
  * Initializes schema constraints and default sample repository project metadata.
  */
 async function initProjectSchema() {
+    if (process.env.RIPPLECHECK_EDITION === "desktop") {
+        const { initLadybugSchema } = require("./ladybugExecutor");
+        return await initLadybugSchema();
+    }
     const driver = getDriver();
     const session = driver.session();
     try {
@@ -122,6 +126,51 @@ async function createProject({
     }
 
     const now = new Date().toISOString();
+    const manifestStr = typeof manifest === "string" ? manifest : JSON.stringify(manifest || []);
+
+    if (process.env.RIPPLECHECK_EDITION === "desktop") {
+        const { executeLadybug } = require("./ladybugExecutor");
+        await executeLadybug(
+            `CREATE (:Project {
+                projectId: $projectId,
+                userId: $userId,
+                projectName: $projectName,
+                originalZipName: $originalZipName,
+                fileCount: $fileCount,
+                dependencyCount: $dependencyCount,
+                manifest: $manifest,
+                createdAt: $createdAt,
+                lastScannedAt: $lastScannedAt,
+                analysisStatus: $analysisStatus
+            })`,
+            {
+                projectId,
+                userId,
+                projectName,
+                originalZipName,
+                fileCount: Number(fileCount),
+                dependencyCount: Number(dependencyCount),
+                manifest: manifestStr,
+                createdAt: now,
+                lastScannedAt: now,
+                analysisStatus
+            },
+            { bypassValidation: true }
+        );
+        return {
+            projectId,
+            userId,
+            projectName,
+            originalZipName,
+            fileCount,
+            dependencyCount,
+            manifest: manifestStr,
+            createdAt: now,
+            lastScannedAt: now,
+            analysisStatus
+        };
+    }
+
     const driver = getDriver();
     const session = driver.session();
 
@@ -174,6 +223,23 @@ async function createProject({
 async function listUserProjects(userId) {
     if (!userId) return [];
 
+    if (process.env.RIPPLECHECK_EDITION === "desktop") {
+        const { executeLadybug } = require("./ladybugExecutor");
+        const rows = await executeLadybug(
+            `MATCH (p:Project)
+            WHERE p.userId = $userId OR p.projectId = 'sample-repo'
+            RETURN p.projectId AS projectId, p.userId AS userId, p.projectName AS projectName,
+                   p.originalZipName AS originalZipName, p.fileCount AS fileCount,
+                   p.dependencyCount AS dependencyCount, p.manifest AS manifest,
+                   p.createdAt AS createdAt, p.lastScannedAt AS lastScannedAt,
+                   p.analysisStatus AS analysisStatus
+            ORDER BY p.createdAt DESC`,
+            { userId },
+            { bypassValidation: true }
+        );
+        return rows;
+    }
+
     const driver = getDriver();
     const session = driver.session();
 
@@ -200,6 +266,22 @@ async function listUserProjects(userId) {
  */
 async function getProjectById(projectId) {
     if (!projectId) return null;
+
+    if (process.env.RIPPLECHECK_EDITION === "desktop") {
+        const { executeLadybug } = require("./ladybugExecutor");
+        const rows = await executeLadybug(
+            `MATCH (p:Project {projectId: $projectId})
+            RETURN p.projectId AS projectId, p.userId AS userId, p.projectName AS projectName,
+                   p.originalZipName AS originalZipName, p.fileCount AS fileCount,
+                   p.dependencyCount AS dependencyCount, p.manifest AS manifest,
+                   p.createdAt AS createdAt, p.lastScannedAt AS lastScannedAt,
+                   p.analysisStatus AS analysisStatus
+            LIMIT 1`,
+            { projectId },
+            { bypassValidation: true }
+        );
+        return rows.length > 0 ? rows[0] : null;
+    }
 
     const driver = getDriver();
     const session = driver.session();
@@ -234,6 +316,32 @@ async function deleteProject(projectId, userId) {
 
     if (projectId === "sample-repo") {
         throw new Error("The default sample repository cannot be deleted.");
+    }
+
+    if (process.env.RIPPLECHECK_EDITION === "desktop") {
+        const { executeLadybug } = require("./ladybugExecutor");
+        const check = await executeLadybug(
+            `MATCH (p:Project {projectId: $projectId}) RETURN p.userId AS ownerId LIMIT 1`,
+            { projectId },
+            { bypassValidation: true }
+        );
+        if (check.length === 0) {
+            throw new Error(`Project '${projectId}' not found.`);
+        }
+        if (check[0].ownerId !== userId) {
+            throw new Error("Forbidden: You do not have permission to delete this project.");
+        }
+        await executeLadybug(
+            `MATCH (p:Project {projectId: $projectId}) DELETE p`,
+            { projectId },
+            { bypassValidation: true }
+        );
+        await executeLadybug(
+            `MATCH (f:File {projectId: $projectId}) DELETE f`,
+            { projectId },
+            { bypassValidation: true }
+        );
+        return { deletedProject: true, deletedNodes: 0, deletedRelationships: 0 };
     }
 
     const driver = getDriver();

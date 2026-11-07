@@ -2,11 +2,15 @@
   "name": "ripplecheck",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "electron/main.js",
   "scripts": {
     "start": "node server.js",
     "server": "node server.js",
     "dev:frontend": "npm --prefix frontend run dev",
+    "electron:start": "electron .",
+    "build:frontend": "npm --prefix frontend run build",
+    "pack:dir": "npm run build:frontend && electron-builder --dir",
+    "dist": "npm run build:frontend && electron-builder",
     "test": "node --test tests/cypherValidator.test.js tests/testZipUpload.test.js tests/testProjectStore.test.js tests/testBackendAuth.test.js"
   },
   "keywords": [],
@@ -15,6 +19,7 @@
   "type": "commonjs",
   "dependencies": {
     "@google/genai": "^3.0.0",
+    "@ladybugdb/core": "^0.22.3",
     "adm-zip": "^0.6.1",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
@@ -23,5 +28,9 @@
     "madge": "^8.0.0",
     "multer": "^2.5.0",
     "neo4j-driver": "^6.2.0"
+  },
+  "devDependencies": {
+    "electron": "^45.2.3",
+    "electron-builder": "^25.1.8"
   }
 }

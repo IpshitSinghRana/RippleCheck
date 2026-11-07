@@ -31,9 +31,9 @@ const PROJECT_ROOT = path.resolve(__dirname, "..");
 const SRC_DIR      = path.join(PROJECT_ROOT, "data", "sample-repo", "src");
 
 // ---------------------------------------------------------------------------
-// Guard: fail early and clearly if the password is missing.
+// Guard: fail early and clearly if the password is missing (only for Web / Neo4j Aura mode).
 // ---------------------------------------------------------------------------
-if (!process.env.NEO4J_PASSWORD) {
+if (process.env.RIPPLECHECK_EDITION !== "desktop" && !process.env.NEO4J_PASSWORD) {
     console.error("❌ NEO4J_PASSWORD is not set.");
     console.error(
         "   Add it to the root .env file:  NEO4J_PASSWORD=<your_password>"

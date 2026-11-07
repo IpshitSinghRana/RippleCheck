@@ -13,7 +13,7 @@
 "use strict";
 
 const { getAuth } = require("../services/firebaseAdmin");
-const { executeCypher } = require("../services/cypherExecutor");
+const { executeCypher } = require("../services/graphAdapter");
 
 /**
  * Extracts bearer token from Authorization header.
@@ -33,6 +33,20 @@ function extractBearerToken(authHeader) {
 async function verifyAuth(req, res, next) {
     const authHeader = req.headers.authorization;
     const requestedProject = (req.query.projectId || (req.body && req.body.projectId) || "sample-repo").toString().trim();
+
+    // 0. Desktop Edition Air-Gapped Mode:
+    // Activated strictly when process.env.RIPPLECHECK_EDITION === 'desktop' AND host is loopback.
+    const isDesktopEdition = process.env.RIPPLECHECK_EDITION === 'desktop';
+    const isLoopbackRequest = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+    if (isDesktopEdition && isLoopbackRequest) {
+        req.userId = 'desktop-guest-user';
+        req.user = {
+            uid: 'desktop-guest-user',
+            name: 'Local Architect',
+            email: 'guest@ripplecheck.local'
+        };
+        return next();
+    }
 
     // 1. Sample repository in local development: allowed without token
     // (Preserves existing local development sample-repo workflow without production bypass)

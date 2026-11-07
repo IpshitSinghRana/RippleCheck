@@ -1,0 +1,52 @@
+appId: com.ripplecheck.desktop
+productName: RippleCheck Desktop
+directories:
+  output: dist-installer
+  buildResources: build
+
+files:
+  - "**/*"
+  - "!frontend/src/**/*"
+  - "!frontend/node_modules/**/*"
+  - "!frontend/.env*"
+  - "!tests/**/*"
+  - "!temp_*/**/*"
+  - "!*.test.js"
+  - "!*.spec.js"
+  - "!dist-installer/**/*"
+  - "!**/.git/**/*"
+  - "!.env*"
+  - "!**/.env*"
+  - "!data/**/*"
+  - "!scratch/**/*"
+  - "!*.log"
+
+extraResources:
+  - from: "build/icon.ico"
+    to: "icon.ico"
+  - from: "build/bin/node.exe"
+    to: "bin/node.exe"
+
+asar: false
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  artifactName: "RippleCheck-Setup.${ext}"
+  signAndEditExecutable: false
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: "RippleCheck"
+  uninstallDisplayName: "RippleCheck Desktop"
+  deleteAppDataOnUninstall: false
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+

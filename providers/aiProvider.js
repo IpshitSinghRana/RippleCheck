@@ -26,6 +26,14 @@ const registry = {
  * @returns {{ providerName: string, providerModule: object }}
  */
 function getActiveProvider() {
+    // In Desktop Edition, strictly force 'ollama' — offline mode only. Never allow Gemini or cloud fallbacks.
+    if (process.env.RIPPLECHECK_EDITION === "desktop") {
+        return {
+            providerName: "ollama",
+            providerModule: require(registry.ollama)
+        };
+    }
+
     const rawProvider = runtimeProvider || process.env.AI_PROVIDER || "ollama";
     const providerName = rawProvider.toLowerCase().trim();
 
@@ -49,6 +57,9 @@ function getActiveProvider() {
  * @param {string} providerName - 'ollama' (offline) or 'gemini' (online)
  */
 function setRuntimeProvider(providerName) {
+    if (process.env.RIPPLECHECK_EDITION === "desktop") {
+        throw new Error("RippleCheck Desktop operates exclusively in Offline mode with local Ollama.");
+    }
     if (!providerName || typeof providerName !== "string") {
         throw new Error("Provider name must be a non-empty string.");
     }

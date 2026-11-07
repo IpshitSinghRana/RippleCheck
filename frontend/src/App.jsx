@@ -63,6 +63,7 @@ import { ImpactPage } from './pages/ImpactPage'
 import { AskPage } from './pages/AskPage'
 import { InsightsPage } from './pages/InsightsPage'
 import { ReportsPage } from './pages/ReportsPage'
+import { SetupWizardModal } from './components/SetupWizardModal'
 
 const nodeTypes = {
   fileNode: FileNode
@@ -759,6 +760,9 @@ function QueryResultTable({ results, onSelectFile }) {
 
 export default function App() {
   const { user, idToken, loading: authLoading, signOut, getIdToken } = useAuth()
+  const [showDesktopWizard, setShowDesktopWizard] = useState(
+    typeof window !== 'undefined' && Boolean(window.electronAPI && window.electronAPI.isDesktop)
+  )
   const [activeTab, setActiveTab] = useState('Workspace')
   const [activeProjectId, setActiveProjectId] = useState('sample-repo')
   const [graphMode, setGraphMode] = useState('dependency')
@@ -1733,12 +1737,17 @@ export default function App() {
   // 3. Authenticated user viewing Dashboard
   if (activeTab === 'Dashboard') {
     return (
-      <Dashboard
-        onOpenWorkspace={(projectId) => {
-          if (projectId) setActiveProjectId(projectId)
-          setActiveTab('Workspace')
-        }}
-      />
+      <>
+        {showDesktopWizard && (
+          <SetupWizardModal onComplete={() => setShowDesktopWizard(false)} />
+        )}
+        <Dashboard
+          onOpenWorkspace={(projectId) => {
+            if (projectId) setActiveProjectId(projectId)
+            setActiveTab('Workspace')
+          }}
+        />
+      </>
     )
   }
 
@@ -1746,6 +1755,9 @@ export default function App() {
   // 4. Authenticated user viewing Workspace / Help
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100vw', height: '100vh', background: 'var(--bg-primary)' }}>
+      {showDesktopWizard && (
+        <SetupWizardModal onComplete={() => setShowDesktopWizard(false)} />
+      )}
       {/* 1. TOP NAVIGATION */}
       <TopNav
         activeTab={activeTab}
