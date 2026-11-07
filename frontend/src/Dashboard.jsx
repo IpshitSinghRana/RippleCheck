@@ -14,7 +14,8 @@ import {
   CheckCircle2,
   Loader2,
   X,
-  Play
+  Play,
+  MonitorDown
 } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import { UserAvatar } from './UserAvatar'
@@ -404,21 +405,75 @@ export function Dashboard({ onOpenWorkspace }) {
         }}
       >
         {/* 2. Welcome Section */}
-        <div>
-          <h1
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <h1
+              style={{
+                fontSize: '22px',
+                fontWeight: 700,
+                margin: '0 0 6px 0',
+                letterSpacing: '-0.3px',
+                color: '#ededf0'
+              }}
+            >
+              Your Projects
+            </h1>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary, #9a9aa8)', margin: 0, lineHeight: 1.5 }}>
+              Analyze dependencies and understand the impact of code changes.
+            </p>
+          </div>
+
+          {/* Desktop Edition Banner */}
+          <div
             style={{
-              fontSize: '22px',
-              fontWeight: 700,
-              margin: '0 0 6px 0',
-              letterSpacing: '-0.3px',
-              color: '#ededf0'
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '14px',
+              padding: '8px 14px',
+              borderRadius: '6px',
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border-subtle, #23232b)',
+              fontSize: '11px',
+              color: 'var(--text-secondary, #9a9aa8)',
+              maxWidth: '460px'
             }}
           >
-            Your Projects
-          </h1>
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary, #9a9aa8)', margin: 0, lineHeight: 1.5 }}>
-            Analyze dependencies and understand the impact of code changes.
-          </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <MonitorDown size={14} color="#818cf8" />
+              <div>
+                <span style={{ fontWeight: 600, color: '#ededf0' }}>RippleCheck Desktop v1.0.0 is now available.</span>{' '}
+                <span>Run dependency analysis locally with embedded graph storage and local AI.</span>
+              </div>
+            </div>
+            <a
+              href="https://github.com/IpshitSinghRana/RippleCheck/releases/tag/v1.0.0"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                color: '#ededf0',
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid var(--border-medium, #2e2e38)',
+                padding: '4px 10px',
+                borderRadius: '4px',
+                textDecoration: 'none',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'
+                e.currentTarget.style.borderColor = 'var(--border-medium, #2e2e38)'
+              }}
+            >
+              Get Offline App
+            </a>
+          </div>
         </div>
 
         {/* 3. Upload Section */}

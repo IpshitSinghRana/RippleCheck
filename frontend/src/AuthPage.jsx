@@ -310,6 +310,79 @@ export function AuthPage() {
               </>
             )}
           </button>
+
+          {/* Desktop Offline Edition Card */}
+          <div
+            style={{
+              marginTop: '18px',
+              padding: '14px 16px',
+              borderRadius: '8px',
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border-subtle, #23232b)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              textAlign: 'center'
+            }}
+          >
+            <div style={{ fontSize: '12px', fontWeight: 600, color: '#ededf0' }}>
+              Prefer a local workspace?
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary, #9a9aa8)', lineHeight: 1.4 }}>
+              Download RippleCheck Desktop for offline dependency analysis.
+            </div>
+            <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+              <a
+                href="https://github.com/IpshitSinghRana/RippleCheck/releases/download/v1.0.0/RippleCheck-Setup.exe"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: '#0a0a0c',
+                  background: '#ededf0',
+                  padding: '6px 14px',
+                  borderRadius: '5px',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  transition: 'background 0.15s ease'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#ffffff' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = '#ededf0' }}
+              >
+                Download for Windows (x64) →
+              </a>
+              <a
+                href="https://github.com/IpshitSinghRana/RippleCheck/releases/tag/v1.0.0"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontSize: '10px',
+                  color: 'var(--text-muted, #646473)',
+                  textDecoration: 'none',
+                  transition: 'color 0.15s ease'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#ededf0' }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted, #646473)' }}
+              >
+                View GitHub Release v1.0.0
+              </a>
+            </div>
+            <div
+              style={{
+                marginTop: '6px',
+                fontSize: '10px',
+                color: 'var(--text-muted, #646473)',
+                lineHeight: 1.4,
+                borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+                paddingTop: '8px'
+              }}
+            >
+              Internet required for first-time setup to download Ollama and the local AI model. Works offline afterward.
+            </div>
+          </div>
         </div>
       </main>
 

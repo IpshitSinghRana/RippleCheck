@@ -4,7 +4,8 @@ import {
   LayoutDashboard,
   LogOut,
   BookOpen,
-  RefreshCw
+  RefreshCw,
+  MonitorDown
 } from 'lucide-react'
 import { UserAvatar } from '../UserAvatar'
 
@@ -174,6 +175,37 @@ export function TopNav({
           <BookOpen size={12} />
           Help Guide
         </button>
+
+        <a
+          href="https://github.com/IpshitSinghRana/RippleCheck/releases/tag/v1.0.0"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Download RippleCheck Desktop for Windows (Offline Edition)"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            background: 'transparent',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '4px',
+            color: 'var(--text-secondary)',
+            textDecoration: 'none',
+            padding: '4px 8px',
+            fontSize: '11px',
+            transition: 'all 0.15s'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.4)'
+            e.currentTarget.style.color = '#ededf0'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--border-subtle)'
+            e.currentTarget.style.color = 'var(--text-secondary)'
+          }}
+        >
+          <MonitorDown size={12} />
+          Desktop App
+        </a>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)' }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4ade80' }} />
