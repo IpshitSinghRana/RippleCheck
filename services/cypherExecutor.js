@@ -38,7 +38,8 @@ const { validateCypher } = require("./cypherValidator");
 // Connection settings — read from .env, with safe local-dev defaults.
 // ---------------------------------------------------------------------------
 const NEO4J_URI      = process.env.NEO4J_URI      || "bolt://localhost:7687";
-const NEO4J_USERNAME = process.env.NEO4J_USERNAME  || "neo4j";
+const NEO4J_USERNAME = process.env.NEO4J_USERNAME  || process.env.NEO4J_USER || "neo4j";
+const NEO4J_DATABASE = process.env.NEO4J_DATABASE  || (NEO4J_URI.includes("databases.neo4j.io") ? NEO4J_USERNAME : "neo4j");
 
 // ---------------------------------------------------------------------------
 // Transaction timeout.
@@ -131,7 +132,7 @@ async function executeCypher(query, params = {}) {
         // database user — it only affects cluster routing.
         // -------------------------------------------------------------------------
         session = driver.session({
-            database: "neo4j",
+            database: NEO4J_DATABASE,
             defaultAccessMode: neo4j.session.READ
         });
 
