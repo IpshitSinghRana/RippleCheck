@@ -20,19 +20,15 @@ const path = require("path");
 require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 const neo4j = require("neo4j-driver");
 
-const NEO4J_URI = process.env.NEO4J_URI || "bolt://localhost:7687";
-const NEO4J_USERNAME = process.env.NEO4J_USERNAME || "neo4j";
-const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD;
+const { createDriver, getDriverConfig } = require("./cypherExecutor");
 
 function getDriver() {
-    if (!NEO4J_PASSWORD) {
-        throw new Error("NEO4J_PASSWORD is not set in environment.");
-    }
-    return neo4j.driver(
-        NEO4J_URI,
-        neo4j.auth.basic(NEO4J_USERNAME, NEO4J_PASSWORD),
-        { disableLosslessIntegers: true }
-    );
+    return createDriver();
+}
+
+function getDatabase() {
+    const { database } = getDriverConfig();
+    return database;
 }
 
 /**
@@ -56,13 +52,18 @@ function generateSecureProjectId(name = "project") {
 /**
  * Initializes schema constraints and default sample repository project metadata.
  */
+function openSession(driver) {
+    const db = getDatabase();
+    return db ? driver.session({ database: db }) : driver.session();
+}
+
 async function initProjectSchema() {
     if (process.env.RIPPLECHECK_EDITION === "desktop") {
         const { initLadybugSchema } = require("./ladybugExecutor");
         return await initLadybugSchema();
     }
     const driver = getDriver();
-    const session = driver.session();
+    const session = openSession(driver);
     try {
         // Enforce uniqueness constraint on Project(projectId)
         await session.run(`
@@ -172,7 +173,7 @@ async function createProject({
     }
 
     const driver = getDriver();
-    const session = driver.session();
+    const session = openSession(driver);
 
     try {
         const manifestStr = typeof manifest === "string" ? manifest : JSON.stringify(manifest || []);
@@ -241,7 +242,7 @@ async function listUserProjects(userId) {
     }
 
     const driver = getDriver();
-    const session = driver.session();
+    const session = openSession(driver);
 
     try {
         const result = await session.run(`
@@ -284,7 +285,7 @@ async function getProjectById(projectId) {
     }
 
     const driver = getDriver();
-    const session = driver.session();
+    const session = openSession(driver);
 
     try {
         const result = await session.run(`
@@ -345,7 +346,7 @@ async function deleteProject(projectId, userId) {
     }
 
     const driver = getDriver();
-    const session = driver.session();
+    const session = openSession(driver);
 
     try {
         // 1. Verify project exists and belongs to requesting user

@@ -34,12 +34,78 @@ require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 const neo4j = require("neo4j-driver");
 const { validateCypher } = require("./cypherValidator");
 
-// ---------------------------------------------------------------------------
-// Connection settings — read from .env, with safe local-dev defaults.
-// ---------------------------------------------------------------------------
-const NEO4J_URI      = process.env.NEO4J_URI      || "bolt://localhost:7687";
-const NEO4J_USERNAME = process.env.NEO4J_USERNAME  || process.env.NEO4J_USER || "neo4j";
-const NEO4J_DATABASE = process.env.NEO4J_DATABASE  || (NEO4J_URI.includes("databases.neo4j.io") ? NEO4J_USERNAME : "neo4j");
+function getDriverConfig() {
+    const uri = process.env.NEO4J_URI || "bolt://localhost:7687";
+    const username = process.env.NEO4J_USERNAME || process.env.NEO4J_USER || "neo4j";
+    const password = process.env.NEO4J_PASSWORD;
+    const database = process.env.NEO4J_DATABASE || (uri.includes("databases.neo4j.io") ? username : undefined);
+    return { uri, username, password, database };
+}
+
+/**
+ * Creates an authorized Neo4j Driver instance using active environment variables.
+ *
+ * @returns {neo4j.Driver}
+ */
+function createDriver() {
+    const { uri, username, password } = getDriverConfig();
+    if (!password) {
+        throw new Error(
+            "NEO4J_PASSWORD is not set. Add it to the environment: NEO4J_PASSWORD=<your_password>"
+        );
+    }
+    return neo4j.driver(
+        uri,
+        neo4j.auth.basic(username, password),
+        { disableLosslessIntegers: true }
+    );
+}
+
+/**
+ * Verifies connectivity to the configured Neo4j instance.
+ *
+ * @returns {Promise<{ ok: boolean, uri: string, database: string, serverInfo?: Object, error?: string }>}
+ */
+async function verifyNeo4jConnection() {
+    const { uri, database, password } = getDriverConfig();
+    if (!password) {
+        return {
+            ok: false,
+            uri,
+            database: database || "default",
+            error: "NEO4J_PASSWORD is not set in environment."
+        };
+    }
+
+    let driver = null;
+    try {
+        driver = createDriver();
+        const serverInfo = await driver.getServerInfo();
+        return {
+            ok: true,
+            uri,
+            database: database || "default",
+            serverInfo: {
+                address: serverInfo.address,
+                agent: serverInfo.agent,
+                protocolVersion: serverInfo.protocolVersion
+            }
+        };
+    } catch (err) {
+        return {
+            ok: false,
+            uri,
+            database: database || "default",
+            error: err.message
+        };
+    } finally {
+        if (driver) {
+            try {
+                await driver.close();
+            } catch (_) {}
+        }
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Transaction timeout.
@@ -83,17 +149,13 @@ async function executeCypher(query, params = {}) {
     validateCypher(query); // throws descriptively on any violation
 
     // -------------------------------------------------------------------------
-    // Step 2: Guard for missing password.
-    // We look up process.env.NEO4J_PASSWORD here (at call time) rather than at
-    // module load time so that runtime configuration changes or test mocks are
-    // properly picked up.
+    // Step 2: Acquire configured driver and database settings.
     // -------------------------------------------------------------------------
-    const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD;
+    const { uri, database, password } = getDriverConfig();
 
-    if (!NEO4J_PASSWORD) {
+    if (!password) {
         throw new Error(
-            "NEO4J_PASSWORD is not set. " +
-            "Add it to the root .env file: NEO4J_PASSWORD=<your_password>"
+            "NEO4J_PASSWORD is not set. Add it to the environment: NEO4J_PASSWORD=<your_password>"
         );
     }
 
@@ -104,16 +166,8 @@ async function executeCypher(query, params = {}) {
     // Integer values to native JS numbers automatically.  Acceptable for
     // RippleCheck because node counts and path lengths will never exceed
     // Number.MAX_SAFE_INTEGER (2^53 - 1).
-    //
-    // A new driver is created per call to avoid stale connection state across
-    // calls, which is acceptable for a CLI tool that runs infrequently.
-    // For a long-running server, create the driver once at startup and reuse it.
     // -------------------------------------------------------------------------
-    const driver = neo4j.driver(
-        NEO4J_URI,
-        neo4j.auth.basic(NEO4J_USERNAME, NEO4J_PASSWORD),
-        { disableLosslessIntegers: true }
-    );
+    const driver = createDriver();
 
     // Always close the driver in the finally block — even if session creation
     // or query execution throws — to release bolt connections.
@@ -121,20 +175,15 @@ async function executeCypher(query, params = {}) {
 
     try {
         // -------------------------------------------------------------------------
-        // Step 4: Open a session.
-        //
-        // database: "neo4j" — always specify explicitly; never rely on the
-        // server-side default, which can vary between Neo4j deployments.
-        //
-        // defaultAccessMode: neo4j.session.READ — instructs the driver and any
-        // cluster router to route this session to a read replica, and signals
-        // intent at the driver level.  This is NOT a substitute for a read-only
-        // database user — it only affects cluster routing.
+        // Step 4: Open a session with the resolved database.
         // -------------------------------------------------------------------------
-        session = driver.session({
-            database: NEO4J_DATABASE,
+        const sessionConfig = {
             defaultAccessMode: neo4j.session.READ
-        });
+        };
+        if (database) {
+            sessionConfig.database = database;
+        }
+        session = driver.session(sessionConfig);
 
         // -------------------------------------------------------------------------
         // Step 5: Execute the query inside a read transaction with a timeout.
@@ -162,7 +211,7 @@ async function executeCypher(query, params = {}) {
     } catch (err) {
         // Rethrow with a clear prefix, but deliberately exclude any detail that
         // could leak connection credentials (URI may be shown; password never is).
-        const safeUri = NEO4J_URI; // URI is not secret; password is excluded
+        const safeUri = uri; // URI is not secret; password is excluded
         throw new Error(
             `Cypher execution failed against ${safeUri}: ${err.message}`
         );
@@ -186,5 +235,10 @@ async function executeCypher(query, params = {}) {
     }
 }
 
-module.exports = { executeCypher };
+module.exports = {
+    executeCypher,
+    createDriver,
+    verifyNeo4jConnection,
+    getDriverConfig
+};
 

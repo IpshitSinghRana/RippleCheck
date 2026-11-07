@@ -25,6 +25,7 @@ if (isDesktop) {
     const neo4j = require("./cypherExecutor");
     module.exports = {
         executeCypher: neo4j.executeCypher,
+        verifyConnectivity: neo4j.verifyNeo4jConnection,
         initSchema: async () => {}, // Handled by initProjectSchema in Neo4j
         closeDatabase: () => {},
         isDesktop: false,

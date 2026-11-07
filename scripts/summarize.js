@@ -41,13 +41,7 @@ if (process.env.RIPPLECHECK_EDITION !== "desktop" && !process.env.NEO4J_PASSWORD
     process.exit(1);
 }
 
-// ---------------------------------------------------------------------------
-// Configuration — read from .env with sensible defaults.
-// ---------------------------------------------------------------------------
-const NEO4J_URI      = process.env.NEO4J_URI      || "bolt://localhost:7687";
-const NEO4J_USERNAME = process.env.NEO4J_USERNAME  || "neo4j";
-const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD;   // never logged
-const TARGET_DB      = "neo4j";
+const { createDriver, getDriverConfig } = require("../services/cypherExecutor");
 
 // ---------------------------------------------------------------------------
 // Normalize file paths to match the exact convention stored by load-graph.js:
@@ -97,10 +91,8 @@ async function summarize(targetSrcDir = SRC_DIR, projectId = "sample-repo") {
     }
 
     // 2. Initialize Neo4j driver & session
-    const driver = neo4j.driver(
-        NEO4J_URI,
-        neo4j.auth.basic(NEO4J_USERNAME, NEO4J_PASSWORD)
-    );
+    const driver = createDriver();
+    const { database, uri } = getDriverConfig();
 
     let session;
     const successfulFiles = [];
@@ -115,7 +107,7 @@ async function summarize(targetSrcDir = SRC_DIR, projectId = "sample-repo") {
         console.log(`📁 Source directory : ${SRC_DIR}`);
         console.log(`🤖 AI Provider      : ${providerInfo.provider}`);
         console.log(`📦 Model            : ${providerInfo.model}`);
-        console.log(`🔌 Neo4j database   : ${TARGET_DB} at ${NEO4J_URI}`);
+        console.log(`🔌 Neo4j database   : ${database || "default"} at ${uri}`);
         console.log("-------------------------------------------------");
         console.log(`Found ${sourceFiles.length} JavaScript file(s) to process.\n`);
 
@@ -123,7 +115,7 @@ async function summarize(targetSrcDir = SRC_DIR, projectId = "sample-repo") {
         await driver.verifyConnectivity();
         console.log(`✅ Connected successfully to Neo4j.\n`);
 
-        session = driver.session({ database: TARGET_DB });
+        session = database ? driver.session({ database }) : driver.session();
 
         // 3. Process each file
         for (let i = 0; i < sourceFiles.length; i++) {

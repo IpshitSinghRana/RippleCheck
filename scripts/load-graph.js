@@ -25,9 +25,7 @@ const DEFAULT_MADGE_FILE = path.join(PROJECT_ROOT, "data", "madge.json");
 const DEFAULT_PROJECT_ID = "sample-repo";
 const DEFAULT_USER_ID = "public";
 
-const NEO4J_URI = process.env.NEO4J_URI || "bolt://localhost:7687";
-const NEO4J_USERNAME = process.env.NEO4J_USERNAME || "neo4j";
-const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD;
+const { createDriver, getDriverConfig } = require("../services/cypherExecutor");
 
 function normalizePath(rawPath) {
     return path.normalize(rawPath).replace(/\\/g, "/");
@@ -52,7 +50,7 @@ async function loadGraph({
     projectId = DEFAULT_PROJECT_ID,
     userId = DEFAULT_USER_ID
 } = {}) {
-    if (process.env.RIPPLECHECK_EDITION !== "desktop" && !NEO4J_PASSWORD) {
+    if (process.env.RIPPLECHECK_EDITION !== "desktop" && !process.env.NEO4J_PASSWORD) {
         throw new Error("NEO4J_PASSWORD is not set in environment.");
     }
 
@@ -134,15 +132,12 @@ async function loadGraph({
     }
 
     // Web Edition: Load into Neo4j Aura
-    const driver = neo4j.driver(
-        NEO4J_URI,
-        neo4j.auth.basic(NEO4J_USERNAME, NEO4J_PASSWORD)
-    );
+    const driver = createDriver();
+    const { database } = getDriverConfig();
 
     let session;
     try {
-        const TARGET_DB = "neo4j";
-        session = driver.session({ database: TARGET_DB });
+        session = database ? driver.session({ database }) : driver.session();
 
         // Ensure composite uniqueness constraint on (projectId, path)
         await session.run(`
@@ -193,13 +188,15 @@ async function loadGraph({
             "MATCH (n:File {projectId: $projectId}) RETURN count(n) AS total_files",
             { projectId }
         );
-        const totalFiles = fileVerify.records[0].get("total_files").toNumber();
+        const rawTotalFiles = fileVerify.records[0].get("total_files");
+        const totalFiles = typeof rawTotalFiles?.toNumber === "function" ? rawTotalFiles.toNumber() : Number(rawTotalFiles);
 
         const edgeVerify = await session.run(
             "MATCH (a:File {projectId: $projectId})-[r:IMPORTS]->(b:File {projectId: $projectId}) RETURN count(r) AS total_relationships",
             { projectId }
         );
-        const totalRelationships = edgeVerify.records[0].get("total_relationships").toNumber();
+        const rawTotalRels = edgeVerify.records[0].get("total_relationships");
+        const totalRelationships = typeof rawTotalRels?.toNumber === "function" ? rawTotalRels.toNumber() : Number(rawTotalRels);
 
         console.log(`✅ Loaded project '${projectId}': ${totalFiles} nodes, ${totalRelationships} relationships.`);
         return { fileCount, edgeCount, totalFiles, totalRelationships };

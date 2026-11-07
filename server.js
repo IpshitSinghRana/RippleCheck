@@ -154,9 +154,47 @@ app._corsHelpers = {
 // Middleware: parse incoming JSON request bodies
 app.use(express.json());
 
-// Health check endpoint
-app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
+// Health check endpoint (reports service and database connectivity)
+app.get("/api/health", async (req, res) => {
+    try {
+        const isDesktop = process.env.RIPPLECHECK_EDITION === "desktop";
+        if (isDesktop) {
+            return res.json({
+                status: "ok",
+                edition: "desktop",
+                database: "ladybugdb"
+            });
+        }
+
+        const { verifyNeo4jConnection } = require("./services/cypherExecutor");
+        const dbStatus = await verifyNeo4jConnection();
+
+        if (!dbStatus.ok) {
+            return res.status(503).json({
+                status: "degraded",
+                edition: "web",
+                database: {
+                    status: "disconnected",
+                    error: dbStatus.error
+                }
+            });
+        }
+
+        return res.json({
+            status: "ok",
+            edition: "web",
+            database: {
+                status: "connected",
+                target: dbStatus.database,
+                server: dbStatus.serverInfo ? dbStatus.serverInfo.agent : "Neo4j"
+            }
+        });
+    } catch (err) {
+        return res.status(500).json({
+            status: "error",
+            error: err.message
+        });
+    }
 });
 
 // AI Provider settings and diagnostic status endpoint
