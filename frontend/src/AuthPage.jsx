@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   GitBranch,
   Shield,
@@ -6,7 +6,7 @@ import {
   CheckCircle2,
   Loader2
 } from 'lucide-react'
-import { signInWithPopup } from 'firebase/auth'
+import { signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth'
 import { auth, googleProvider, isFirebaseConfigured } from './firebase'
 import { useAuth } from './AuthContext'
 
@@ -15,6 +15,28 @@ export function AuthPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
+
+  // Handle the result after a signInWithRedirect() flow returns
+  useEffect(() => {
+    if (!isFirebaseConfigured || !auth) return
+    setLoading(true)
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result && result.user) {
+          setStatusMessage(`Authenticated as ${result.user.displayName || result.user.email}`)
+          console.log('[RippleCheck] Redirect sign-in successful.')
+        }
+      })
+      .catch((err) => {
+        console.error('[RippleCheck] Redirect result error:', err)
+        if (err.code === 'auth/unauthorized-domain') {
+          setError('This domain is not authorized in Firebase Console (Authentication → Settings → Authorized domains).')
+        } else if (err.code && err.code !== 'auth/no-auth-event') {
+          setError(err.message || 'Authentication failed after redirect.')
+        }
+      })
+      .finally(() => setLoading(false))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGoogleSignIn = async () => {
     setError('')
@@ -35,18 +57,28 @@ export function AuthPage() {
       console.log('[RippleCheck] Firebase Google Sign-In successful. ID Token acquired.')
     } catch (err) {
       console.error('[RippleCheck] Google Sign-In Error:', err)
-      if (err.code === 'auth/popup-closed-by-user') {
+      if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+        // Popup was blocked — fall back to redirect flow
+        console.log('[RippleCheck] Popup blocked, falling back to signInWithRedirect.')
+        setStatusMessage('Redirecting to Google Sign-In...')
+        try {
+          await signInWithRedirect(auth, googleProvider)
+          // Page will navigate away; execution stops here
+        } catch (redirectErr) {
+          console.error('[RippleCheck] Redirect sign-in error:', redirectErr)
+          setError(redirectErr.message || 'Authentication failed. Please try again.')
+          setStatusMessage('')
+          setLoading(false)
+        }
+        // Don't call setLoading(false) here — the redirect navigates the page
+        return
+      } else if (err.code === 'auth/popup-closed-by-user') {
         setError('Sign-in cancelled: popup was closed before completing authentication.')
-      } else if (err.code === 'auth/cancelled-popup-request') {
-        setError('Only one sign-in popup can be active at a time.')
-      } else if (err.code === 'auth/popup-blocked') {
-        setError('Popup was blocked by your browser. Please permit popups for this domain.')
       } else if (err.code === 'auth/unauthorized-domain') {
-        setError('This domain is not authorized in Firebase Console (Authentication > Settings > Authorized domains).')
+        setError('This domain is not authorized in Firebase Console (Authentication → Settings → Authorized domains).')
       } else {
         setError(err.message || 'Authentication failed. Please verify your connection and Firebase configuration.')
       }
-    } finally {
       setLoading(false)
     }
   }
