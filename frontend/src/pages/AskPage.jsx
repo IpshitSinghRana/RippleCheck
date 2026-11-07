@@ -22,6 +22,7 @@ import { apiUrl } from '../apiConfig'
 export function AskPage({
   activeProjectId,
   idToken,
+  getIdToken,
   handleSelectFile,
   setActiveTab
 }) {
@@ -103,8 +104,9 @@ export function AskPage({
 
     try {
       const headers = { 'Content-Type': 'application/json' }
-      if (idToken) {
-        headers['Authorization'] = `Bearer ${idToken}`
+      const token = typeof getIdToken === 'function' ? await getIdToken() : idToken
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       const res = await fetch(apiUrl('/query'), {
         method: 'POST',

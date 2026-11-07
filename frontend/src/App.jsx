@@ -1821,6 +1821,7 @@ export default function App() {
         <AskPage
           activeProjectId={activeProjectId}
           idToken={idToken}
+          getIdToken={getIdToken}
           handleSelectFile={handleSelectFile}
           setActiveTab={setActiveTab}
         />
