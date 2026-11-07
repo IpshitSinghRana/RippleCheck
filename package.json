@@ -11,7 +11,7 @@
     "build:frontend": "npm --prefix frontend run build",
     "pack:dir": "npm run build:frontend && electron-builder --dir",
     "dist": "npm run build:frontend && electron-builder",
-    "test": "node --test tests/cypherValidator.test.js tests/testZipUpload.test.js tests/testProjectStore.test.js tests/testBackendAuth.test.js"
+    "test": "node --test tests/cypherValidator.test.js tests/testZipUpload.test.js tests/testProjectStore.test.js tests/testBackendAuth.test.js tests/testCors.test.js"
   },
   "keywords": [],
   "author": "",

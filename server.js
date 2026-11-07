@@ -54,29 +54,102 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || "0.0.0.0";
 
-// Configure allowed CORS origins: supports comma-separated ALLOWED_ORIGINS and local development
-const configuredOrigins = (process.env.ALLOWED_ORIGINS || "")
-    .split(",")
-    .map((o) => o.trim())
-    .filter(Boolean);
+// -----------------------------------------------------------------------------
+// CORS Configuration & Origin Validation Guard
+// -----------------------------------------------------------------------------
 
-// Enable CORS for local Vite dev server, production domains, and credentials
+// Confirmed default production origin
+const DEFAULT_ALLOWED_ORIGINS = [
+    "https://ripplecheck-pink.vercel.app"
+];
+
+/**
+ * Normalizes an origin URL string:
+ * - Trims whitespace
+ * - Strips leading/trailing single/double quotes
+ * - Strips trailing slashes
+ * - Converts to lower-case
+ *
+ * @param {string} raw - Raw origin string
+ * @returns {string} Normalized origin
+ */
+function normalizeOrigin(raw) {
+    if (!raw || typeof raw !== "string") return "";
+    return raw
+        .trim()
+        .replace(/^["']|["']$/g, "")
+        .replace(/\/+$/, "")
+        .toLowerCase();
+}
+
+/**
+ * Parses and normalizes comma-separated origins from environment.
+ * Always includes DEFAULT_ALLOWED_ORIGINS.
+ *
+ * @param {string} [rawEnvOrigins] - Raw comma-separated string from process.env.ALLOWED_ORIGINS
+ * @returns {string[]} Array of unique, normalized allowed origins
+ */
+function parseAllowedOrigins(rawEnvOrigins = process.env.ALLOWED_ORIGINS) {
+    const custom = (rawEnvOrigins || "")
+        .split(",")
+        .map(normalizeOrigin)
+        .filter(Boolean);
+    const defaults = DEFAULT_ALLOWED_ORIGINS.map(normalizeOrigin);
+    return Array.from(new Set([...defaults, ...custom]));
+}
+
+/**
+ * Evaluates whether an incoming Origin is authorized.
+ *
+ * @param {string} [origin] - Incoming Origin header
+ * @param {string[]} [allowedList] - List of configured origins
+ * @returns {boolean} True if permitted, false otherwise
+ */
+function isOriginAllowed(origin, allowedList = parseAllowedOrigins()) {
+    if (!origin) return true; // Direct server-to-server, curl, or loopback without Origin header
+    const cleanOrigin = normalizeOrigin(origin);
+    // Localhost and loopback IPv4/IPv6 with optional ports
+    if (/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(cleanOrigin)) {
+        return true;
+    }
+    return allowedList.includes(cleanOrigin);
+}
+
+// 1. Preflight & Direct CORS Guard Middleware
+// Explicitly validates Origin and blocks untrusted requests with HTTP 403 Forbidden
+// before executing any application logic or route handlers.
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin && !isOriginAllowed(origin)) {
+        console.warn(`[CORS Guard] Blocked unauthorized request from origin: ${origin}`);
+        return res.status(403).json({
+            error: "Forbidden: Origin not allowed by CORS policy."
+        });
+    }
+    next();
+});
+
+// 2. Standard CORS headers configuration for authorized origins
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow requests with no origin (e.g. server-to-server, curl) or localhost / 127.0.0.1
-        if (!origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
-            return callback(null, true);
+        if (!origin || isOriginAllowed(origin)) {
+            return callback(null, origin || true);
         }
-        // Match explicitly configured production origins
-        if (configuredOrigins.includes(origin)) {
-            return callback(null, true);
-        }
-        return callback(new Error(`CORS blocked for origin: ${origin}`));
+        return callback(null, false);
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+    allowedHeaders: ["Content-Type", "Authorization"],
+    maxAge: 86400
 }));
+
+// Export helper functions for automated testing
+app._corsHelpers = {
+    normalizeOrigin,
+    parseAllowedOrigins,
+    isOriginAllowed,
+    DEFAULT_ALLOWED_ORIGINS
+};
 
 // Middleware: parse incoming JSON request bodies
 app.use(express.json());
