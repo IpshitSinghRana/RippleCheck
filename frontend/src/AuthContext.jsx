@@ -74,12 +74,26 @@ export function AuthProvider({ children }) {
     setIdToken(null)
   }
 
+  const getIdToken = async (forceRefresh = false) => {
+    if (user && typeof user.getIdToken === 'function') {
+      try {
+        const freshToken = await user.getIdToken(forceRefresh)
+        setIdToken(freshToken)
+        return freshToken
+      } catch (err) {
+        console.warn('[RippleCheck] Failed to refresh Firebase ID token:', err)
+      }
+    }
+    return idToken
+  }
+
   const value = {
     user,
     idToken,
     loading,
     isConfigured: isFirebaseConfigured,
-    signOut
+    signOut,
+    getIdToken
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

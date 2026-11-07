@@ -758,7 +758,7 @@ function QueryResultTable({ results, onSelectFile }) {
 }
 
 export default function App() {
-  const { user, idToken, loading: authLoading, signOut } = useAuth()
+  const { user, idToken, loading: authLoading, signOut, getIdToken } = useAuth()
   const [activeTab, setActiveTab] = useState('Workspace')
   const [activeProjectId, setActiveProjectId] = useState('sample-repo')
   const [graphMode, setGraphMode] = useState('dependency')
@@ -966,7 +966,8 @@ export default function App() {
     setLoadingGraph(true)
     setGraphError(null)
     try {
-      const headers = idToken ? { Authorization: `Bearer ${idToken}` } : {}
+      const token = typeof getIdToken === 'function' ? await getIdToken() : idToken
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
       const res = await fetch(apiUrl(`/graph?projectId=${encodeURIComponent(activeProjectId)}`), { headers })
       if (!res.ok) {
         throw new Error(`Server returned ${res.status}: ${res.statusText}`)
@@ -998,7 +999,7 @@ export default function App() {
     } finally {
       setLoadingGraph(false)
     }
-  }, [setNodes, setEdges, activeProjectId, graphMode, idToken, selectedFile?.path, normalizedSearchQuery, matchingGraphNodeIds, updateEdgeStyles])
+  }, [setNodes, setEdges, activeProjectId, graphMode, idToken, getIdToken, selectedFile?.path, normalizedSearchQuery, matchingGraphNodeIds, updateEdgeStyles])
 
   useEffect(() => {
     fetchGraph()
@@ -1121,7 +1122,8 @@ export default function App() {
         rawGraph.edges.filter((e) => e.source === fileObj.path).map((e) => e.target)
       )
 
-      const headers = idToken ? { Authorization: `Bearer ${idToken}` } : {}
+      const token = typeof getIdToken === 'function' ? await getIdToken() : idToken
+      const headers = token ? { Authorization: `Bearer ${token}` } : {}
       const res = await fetch(apiUrl(`/impact/${encodeURIComponent(fileObj.name)}?projectId=${encodeURIComponent(activeProjectId)}`), { headers })
       if (res.ok) {
         const impact = await res.json()
@@ -1284,8 +1286,9 @@ export default function App() {
 
     try {
       const headers = { 'Content-Type': 'application/json' }
-      if (idToken) {
-        headers['Authorization'] = `Bearer ${idToken}`
+      const token = typeof getIdToken === 'function' ? await getIdToken() : idToken
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
       const res = await fetch(apiUrl('/query'), {
         method: 'POST',
