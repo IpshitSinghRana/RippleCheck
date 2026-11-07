@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from './AuthContext'
 import { UserAvatar } from './UserAvatar'
+import { apiUrl } from './apiConfig'
 
 // Safe helper to parse JSON responses from fetch
 async function parseJsonResponse(res) {
@@ -98,7 +99,7 @@ export function Dashboard({ onOpenWorkspace }) {
       const headers = token ? { Authorization: `Bearer ${token}` } : {}
       let res
       try {
-        res = await fetch('/api/projects', { headers })
+        res = await fetch(apiUrl('/projects'), { headers })
       } catch (fetchErr) {
         if (fetchErr.name === 'TypeError' || (fetchErr.message && fetchErr.message.toLowerCase().includes('fetch'))) {
           throw new Error('Connection failed: Backend API server unreachable on http://localhost:3000.')
@@ -206,7 +207,7 @@ export function Dashboard({ onOpenWorkspace }) {
       const headers = token ? { Authorization: `Bearer ${token}` } : {}
       let res
       try {
-        res = await fetch(`/api/projects/${encodeURIComponent(projectId)}`, {
+        res = await fetch(apiUrl(`/projects/${encodeURIComponent(projectId)}`), {
           method: 'DELETE',
           headers
         })
@@ -250,7 +251,7 @@ export function Dashboard({ onOpenWorkspace }) {
 
       let res
       try {
-        res = await fetch('/api/projects/upload', {
+        res = await fetch(apiUrl('/projects/upload'), {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`

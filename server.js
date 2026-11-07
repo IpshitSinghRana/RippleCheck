@@ -16,6 +16,7 @@ const express = require("express");
 const cors = require("cors");
 const crypto = require("crypto");
 const multer = require("multer");
+const aiProvider = require("./providers/aiProvider");
 const { generateCypher } = require("./services/nlToCypher");
 const { executeCypher } = require("./services/cypherExecutor");
 const { verifyAuth, verifyProjectAccess } = require("./middleware/verifyAuth");
@@ -53,14 +54,24 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || "0.0.0.0";
 
-// Enable CORS for local Vite dev server and credentials
+// Configure allowed CORS origins: supports comma-separated ALLOWED_ORIGINS and local development
+const configuredOrigins = (process.env.ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+// Enable CORS for local Vite dev server, production domains, and credentials
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow requests with no origin (e.g. curl, server-to-server) or localhost / 127.0.0.1
+        // Allow requests with no origin (e.g. server-to-server, curl) or localhost / 127.0.0.1
         if (!origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
             return callback(null, true);
         }
-        return callback(null, false);
+        // Match explicitly configured production origins
+        if (configuredOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        return callback(new Error(`CORS blocked for origin: ${origin}`));
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -73,6 +84,41 @@ app.use(express.json());
 // Health check endpoint
 app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+});
+
+// AI Provider settings and diagnostic status endpoint
+app.get("/api/ai/provider", async (req, res) => {
+    try {
+        const info = aiProvider.getProviderInfo();
+        const health = await aiProvider.checkHealth();
+        res.json({
+            ...info,
+            status: health.ok ? "connected" : "error",
+            statusMessage: health.message
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Set active AI provider (offline Ollama vs. online Gemini)
+app.post("/api/ai/provider", async (req, res) => {
+    const { provider } = req.body || {};
+    if (!provider || typeof provider !== "string") {
+        return res.status(400).json({ error: "Missing or invalid 'provider' parameter." });
+    }
+    try {
+        aiProvider.setRuntimeProvider(provider);
+        const info = aiProvider.getProviderInfo();
+        const health = await aiProvider.checkHealth();
+        res.json({
+            ...info,
+            status: health.ok ? "connected" : "error",
+            statusMessage: health.message
+        });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
 });
 
 // Authenticated POST /api/projects/upload endpoint

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Send,
   Terminal,
@@ -11,9 +11,13 @@ import {
   ArrowRight,
   Clock,
   Trash2,
-  FileCode
+  FileCode,
+  Cpu,
+  Globe,
+  CheckCircle2
 } from 'lucide-react'
 import { QueryResultTable } from '../components/QueryResultTable'
+import { apiUrl } from '../apiConfig'
 
 export function AskPage({
   activeProjectId,
@@ -23,6 +27,51 @@ export function AskPage({
 }) {
   const [question, setQuestion] = useState('')
   const [loading, setLoading] = useState(false)
+  const [providerInfo, setProviderInfo] = useState({
+    provider: 'ollama',
+    mode: 'offline',
+    model: 'qwen2.5-coder:3b',
+    status: 'connected',
+    statusMessage: 'Loading status...'
+  })
+  const [switchingProvider, setSwitchingProvider] = useState(false)
+
+  // Fetch AI provider status
+  const fetchProviderStatus = async () => {
+    try {
+      const res = await fetch(apiUrl('/ai/provider'))
+      if (res.ok) {
+        const data = await res.json()
+        setProviderInfo(data)
+      }
+    } catch (err) {
+      console.warn('Failed to fetch AI provider status:', err)
+    }
+  }
+
+  useEffect(() => {
+    fetchProviderStatus()
+  }, [])
+
+  const handleProviderChange = async (targetProvider) => {
+    if (switchingProvider || providerInfo.provider === targetProvider) return
+    setSwitchingProvider(true)
+    try {
+      const res = await fetch(apiUrl('/ai/provider'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: targetProvider })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setProviderInfo(data)
+      }
+    } catch (err) {
+      console.error('Failed to change AI provider:', err)
+    } finally {
+      setSwitchingProvider(false)
+    }
+  }
   const [history, setHistory] = useState([
     {
       id: 'default-welcome',
@@ -57,7 +106,7 @@ export function AskPage({
       if (idToken) {
         headers['Authorization'] = `Bearer ${idToken}`
       }
-      const res = await fetch('/api/query', {
+      const res = await fetch(apiUrl('/query'), {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -131,7 +180,93 @@ export function AskPage({
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* AI Provider Selector: Offline vs Online */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '5px',
+              padding: '2px',
+              gap: '2px'
+            }}
+          >
+            <button
+              onClick={() => handleProviderChange('ollama')}
+              disabled={switchingProvider}
+              title="Offline local inference via Ollama (qwen2.5-coder:3b)"
+              style={{
+                background: providerInfo.provider === 'ollama' ? '#2e2e38' : 'transparent',
+                color: providerInfo.provider === 'ollama' ? '#ededf0' : 'var(--text-muted)',
+                border: 'none',
+                borderRadius: '3px',
+                padding: '3px 8px',
+                fontSize: '11px',
+                fontWeight: providerInfo.provider === 'ollama' ? 600 : 400,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Cpu size={12} color={providerInfo.provider === 'ollama' ? '#38bdf8' : 'currentColor'} />
+              Offline (Ollama)
+            </button>
+
+            <button
+              onClick={() => handleProviderChange('gemini')}
+              disabled={switchingProvider}
+              title="Online cloud inference via Google Gemini (gemini-2.5-flash)"
+              style={{
+                background: providerInfo.provider === 'gemini' ? '#2e2e38' : 'transparent',
+                color: providerInfo.provider === 'gemini' ? '#ededf0' : 'var(--text-muted)',
+                border: 'none',
+                borderRadius: '3px',
+                padding: '3px 8px',
+                fontSize: '11px',
+                fontWeight: providerInfo.provider === 'gemini' ? 600 : 400,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Globe size={12} color={providerInfo.provider === 'gemini' ? '#34d399' : 'currentColor'} />
+              Online (Gemini)
+            </button>
+          </div>
+
+          {/* Provider status indicator pill */}
+          <div
+            title={`Active: ${providerInfo.provider} (${providerInfo.model || 'model'}) - ${providerInfo.statusMessage || ''}`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              fontSize: '10px',
+              padding: '3px 7px',
+              borderRadius: '4px',
+              background: providerInfo.status === 'connected' ? 'rgba(52, 211, 153, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+              border: `1px solid ${providerInfo.status === 'connected' ? 'rgba(52, 211, 153, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+              color: providerInfo.status === 'connected' ? '#34d399' : '#f87171'
+            }}
+          >
+            <span
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                background: providerInfo.status === 'connected' ? '#34d399' : '#f87171'
+              }}
+            />
+            <span>{providerInfo.provider === 'ollama' ? 'Ollama' : 'Gemini'}</span>
+            <span style={{ color: 'var(--text-muted)' }}>• {providerInfo.model}</span>
+          </div>
+
           {history.length > 0 && (
             <button
               onClick={() => setHistory([])}

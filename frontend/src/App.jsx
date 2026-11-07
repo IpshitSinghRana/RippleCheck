@@ -13,6 +13,7 @@ import {
 } from '@xyflow/react'
 import { toPng, toSvg } from 'html-to-image'
 import '@xyflow/react/dist/style.css'
+import { apiUrl } from './apiConfig'
 import {
   Layers,
   Search,
@@ -966,7 +967,7 @@ export default function App() {
     setGraphError(null)
     try {
       const headers = idToken ? { Authorization: `Bearer ${idToken}` } : {}
-      const res = await fetch(`/api/graph?projectId=${encodeURIComponent(activeProjectId)}`, { headers })
+      const res = await fetch(apiUrl(`/graph?projectId=${encodeURIComponent(activeProjectId)}`), { headers })
       if (!res.ok) {
         throw new Error(`Server returned ${res.status}: ${res.statusText}`)
       }
@@ -1121,7 +1122,7 @@ export default function App() {
       )
 
       const headers = idToken ? { Authorization: `Bearer ${idToken}` } : {}
-      const res = await fetch(`/api/impact/${encodeURIComponent(fileObj.name)}?projectId=${encodeURIComponent(activeProjectId)}`, { headers })
+      const res = await fetch(apiUrl(`/impact/${encodeURIComponent(fileObj.name)}?projectId=${encodeURIComponent(activeProjectId)}`), { headers })
       if (res.ok) {
         const impact = await res.json()
         setImpactData(impact)
@@ -1286,7 +1287,7 @@ export default function App() {
       if (idToken) {
         headers['Authorization'] = `Bearer ${idToken}`
       }
-      const res = await fetch('/api/query', {
+      const res = await fetch(apiUrl('/query'), {
         method: 'POST',
         headers,
         body: JSON.stringify({
