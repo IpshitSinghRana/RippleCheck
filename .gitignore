@@ -1,0 +1,59 @@
+# Dependency directories
+node_modules/
+*/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment and secrets (CRITICAL: Never commit .env or service account credentials)
+.env
+.env*.local
+*.env
+!.env.example
+frontend/.env
+frontend/.env*.local
+frontend/*.env
+!frontend/.env.example
+serviceAccountKey.json
+*firebase-adminsdk*.json
+credentials/
+*.pem
+*.key
+*.cert
+
+# Production build outputs
+dist/
+dist-ssr/
+frontend/dist/
+frontend/dist-ssr/
+*.tsbuildinfo
+
+# Temporary upload and extraction caches
+multipart-temp/
+temp/
+tmp/
+*.zip
+!data/sample-repo.zip
+
+# Temporary test / scratch files
+scratch/
+temp_*.js
+test_*.js
+*.log
+logs/
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# IDE and Editor configurations
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

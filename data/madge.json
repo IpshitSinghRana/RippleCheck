@@ -1,0 +1,17 @@
+{
+  "app.js": [
+    "auth.js",
+    "userService.js"
+  ],
+  "auth.js": [
+    "utils.js"
+  ],
+  "database.js": [],
+  "index.js": [
+    "app.js"
+  ],
+  "userService.js": [
+    "database.js"
+  ],
+  "utils.js": []
+}

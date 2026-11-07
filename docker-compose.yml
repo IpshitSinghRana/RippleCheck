@@ -1,0 +1,88 @@
+# =============================================================================
+# RippleCheck — Neo4j Docker Compose Configuration
+# =============================================================================
+# Usage:
+#   1. Set NEO4J_PASSWORD in the root .env file (already present — do not
+#      commit .env to version control; it is listed in .gitignore).
+#   2. Start:  docker compose up -d
+#   3. Stop:   docker compose down
+#
+# Credentials are read from .env at startup via Docker Compose variable
+# substitution.  If NEO4J_PASSWORD is missing or empty, Docker Compose will
+# refuse to start and print a clear error message.
+# =============================================================================
+
+services:
+  neo4j:
+    image: neo4j:5.26-community
+    container_name: ripplecheck-neo4j
+    restart: unless-stopped
+
+    # -------------------------------------------------------------------------
+    # Port bindings — bound to 127.0.0.1 (localhost only) for local development.
+    # This prevents Neo4j from being reachable on any external network interface.
+    # -------------------------------------------------------------------------
+    ports:
+      - "127.0.0.1:7474:7474"   # Neo4j Browser (HTTP)
+      - "127.0.0.1:7687:7687"   # Bolt protocol (used by the neo4j-driver)
+
+    # -------------------------------------------------------------------------
+    # Environment variables
+    # NEO4J_AUTH format:  <username>/<password>
+    # NEO4J_PASSWORD is read from the root .env file by Docker Compose.
+    # The :? syntax makes startup fail with a clear error if the variable is
+    # unset or empty — credentials are never logged or echoed.
+    # -------------------------------------------------------------------------
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?NEO4J_PASSWORD must be set in the .env file}
+
+      # -- Memory tuning (suitable for a local development workstation) --------
+      NEO4J_server_memory_heap_initial__size: "512m"
+      NEO4J_server_memory_heap_max__size: "1G"
+      NEO4J_server_memory_pagecache_size: "512m"
+
+      # -- Bolt connector — listen on all container interfaces so the host
+      #    can reach it via the published port above. -------------------------
+      NEO4J_server_bolt_listen__address: "0.0.0.0:7687"
+      NEO4J_server_http_listen__address: "0.0.0.0:7474"
+
+      # -- Disable remote shell / telemetry for local dev --------------------
+      NEO4J_server_databases_default__to__read__only: "false"
+      NEO4J_dbms_usage__report_enabled: "false"
+
+    # -------------------------------------------------------------------------
+    # Named Docker volumes — data lives inside Docker's storage area (WSL 2
+    # virtual disk on D:), not inside the project directory.  This is safer
+    # and avoids file-permission issues common with Windows bind mounts.
+    # -------------------------------------------------------------------------
+    volumes:
+      - ripplecheck_neo4j_data:/data
+      - ripplecheck_neo4j_logs:/logs
+      - ripplecheck_neo4j_import:/import
+      - ripplecheck_neo4j_plugins:/plugins
+
+    # -------------------------------------------------------------------------
+    # Healthcheck — uses wget (bundled in the Neo4j image) to probe the HTTP
+    # discovery endpoint.  No credentials are needed or exposed in this check.
+    #   start_period: gives Neo4j time to initialise the DB on first startup.
+    # -------------------------------------------------------------------------
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+# =============================================================================
+# Named volumes — Docker manages these; they persist across container restarts
+# and are removed only with:  docker compose down -v
+# =============================================================================
+volumes:
+  ripplecheck_neo4j_data:
+    name: ripplecheck_neo4j_data
+  ripplecheck_neo4j_logs:
+    name: ripplecheck_neo4j_logs
+  ripplecheck_neo4j_import:
+    name: ripplecheck_neo4j_import
+  ripplecheck_neo4j_plugins:
+    name: ripplecheck_neo4j_plugins
