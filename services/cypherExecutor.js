@@ -36,7 +36,15 @@ const { validateCypher } = require("./cypherValidator");
 
 function getDriverConfig() {
     const uri = process.env.NEO4J_URI || "bolt://localhost:7687";
-    const username = process.env.NEO4J_USERNAME || process.env.NEO4J_USER || "neo4j";
+    // If connecting to Neo4j Aura (e.g. *.databases.neo4j.io), default username to the instance ID from the hostname
+    let defaultUsername = "neo4j";
+    if (uri.includes("databases.neo4j.io")) {
+        const match = uri.match(/neo4j(?:\+s)?:\/\/([^.]+)\.databases\.neo4j\.io/i);
+        if (match && match[1]) {
+            defaultUsername = match[1];
+        }
+    }
+    const username = process.env.NEO4J_USERNAME || process.env.NEO4J_USER || defaultUsername;
     const password = process.env.NEO4J_PASSWORD;
     const database = process.env.NEO4J_DATABASE || (uri.includes("databases.neo4j.io") ? username : undefined);
     return { uri, username, password, database };
