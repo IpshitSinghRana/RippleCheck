@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { onAuthStateChanged, signOut as fbSignOut } from 'firebase/auth'
+import { onAuthStateChanged, signOut as fbSignOut, getRedirectResult } from 'firebase/auth'
 import { auth, isFirebaseConfigured } from './firebase'
 
 const AuthContext = createContext({
@@ -24,7 +24,27 @@ export function AuthProvider({ children }) {
       return
     }
 
-    // Subscribe to Firebase Authentication state updates
+    // Process any pending redirect sign-in result FIRST so that the subsequent
+    // onAuthStateChanged callback sees the authenticated user immediately,
+    // rather than firing once with null (unauthenticated) before the redirect
+    // token is exchanged. This prevents the app from briefly flashing the
+    // AuthPage after a successful signInWithRedirect() flow.
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          console.log('[RippleCheck] AuthContext: redirect sign-in result received for', result.user.email)
+        }
+      })
+      .catch((err) => {
+        // auth/no-auth-event is expected when there is no pending redirect — ignore it.
+        if (err.code !== 'auth/no-auth-event') {
+          console.error('[RippleCheck] AuthContext: redirect result error:', err.code, err.message)
+        }
+      })
+
+    // Subscribe to Firebase Authentication state updates.
+    // This fires after getRedirectResult has exchanged the token (if any),
+    // so the first emission will already carry the signed-in user.
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         try {
